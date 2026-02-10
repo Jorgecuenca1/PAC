@@ -7,7 +7,19 @@ SECRET_KEY = 'django-insecure-pac-2026-key-change-in-production'
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['pac.corpofuturo.org', 'localhost', '127.0.0.1', '0.0.0.0']
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://pac.corpofuturo.org',
+    'http://pac.corpofuturo.org',
+]
+
+CORS_ALLOWED_ORIGINS = [
+    'https://pac.corpofuturo.org',
+    'http://pac.corpofuturo.org',
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -17,11 +29,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'corsheaders',
     'pac',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

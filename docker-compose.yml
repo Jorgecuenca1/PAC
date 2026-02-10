@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  backend:
+    build: .
+    container_name: pac_backend
+    ports:
+      - 8002
+    volumes:
+      - .:/code-backend
+      - static_volume:/code-backend/staticfiles
+    command: bash -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn pac_project.wsgi:application --bind 0.0.0.0:8002"
+    restart: always
+
+  https-portal:
+    image: steveltn/https-portal:1
+    container_name: pac_https_portal
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAINS: 'pac.corpofuturo.org -> http://backend:8002'
+      STAGE: 'production'
+      CLIENT_MAX_BODY_SIZE: 10M
+    volumes:
+      - https-portal-data:/var/lib/https-portal
+      - /data/https-portal/vhosts:/var/www/vhosts
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  https-portal-data:
+  static_volume:
