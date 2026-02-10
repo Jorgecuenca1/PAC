@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% load pac_tags %}
+{% load humanize %}
+
+{% block title %}{{ fuente.nombre }}{% endblock %}
+{% block page_title %}Detalle Fuente: {{ fuente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="fw-bold text-dark mb-1">{{ fuente.nombre }}</h5>
+        <small class="text-muted">Codigo: {{ fuente.codigo }} | Vigencia: {{ fuente.vigencia }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'fuente_editar' fuente.pk %}" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-edit me-1"></i>Editar
+        </a>
+        <a href="{% url 'fuentes_financiacion' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+    </div>
+</div>
+
+<!-- Resumen cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Presupuesto Asignado</div>
+            <div class="stat-value">{{ fuente.presupuesto_asignado|formato_moneda }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Compromisos</div>
+            <div class="stat-value text-primary">{{ total_compromisos|formato_moneda }}</div>
+            <div class="mt-2">
+                <div class="d-flex justify-content-between" style="font-size:0.7rem">
+                    <span>Ejecucion</span>
+                    <span class="{{ pct_ejecucion|color_porcentaje }} fw-bold">{{ pct_ejecucion }}%</span>
+                </div>
+                <div class="progress progress-sm mt-1">
+                    <div class="progress-bar {{ pct_ejecucion|bg_porcentaje }}" style="width:{% if pct_ejecucion > 100 %}100{% else %}{{ pct_ejecucion }}{% endif %}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Pagos</div>
+            <div class="stat-value" style="color:#9c27b0">{{ total_pagos|formato_moneda }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Saldo Disponible</div>
+            <div class="stat-value {% if saldo < 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ saldo|formato_moneda }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Programado Ingresos</div>
+            <div class="stat-value text-success">{{ total_programado_ing|formato_moneda }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Programado Gastos</div>
+            <div class="stat-value text-danger">{{ total_programado_gas|formato_moneda }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-label">Recaudo (Ingresos Ejecutados)</div>
+            <div class="stat-value text-info">{{ total_recaudo|formato_moneda }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafica mensual -->
+<div class="card-custom mb-4">
+    <div class="card-header" style="background: linear-gradient(135deg, #00bcd4, #26c6da)">
+        <span><i class="fas fa-chart-bar me-2"></i>Detalle Mensual</span>
+    </div>
+    <div class="p-3">
+        <canvas id="chartFuente" height="100"></canvas>
+    </div>
+</div>
+
+<!-- Tabla mensual -->
+<div class="card-custom mb-4">
+    <div class="card-header" style="background: linear-gradient(135deg, #455a64, #607d8b)">
+        <span><i class="fas fa-table me-2"></i>Desglose Mensual</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-pac table-hover table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Mes</th>
+                    <th class="text-end">Prog. Ingresos</th>
+                    <th class="text-end">Recaudo</th>
+                    <th class="text-end">Prog. Gastos</th>
+                    <th class="text-end">Compromisos</th>
+                    <th class="text-end">Pagos</th>
+                    <th class="text-center">% Comp.</th>
+                    <th class="text-center">% Pagos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in datos_mensuales %}
+                <tr>
+                    <td class="fw-semibold">{{ d.mes }}</td>
+                    <td class="text-end">{{ d.prog_ing|formato_moneda }}</td>
+                    <td class="text-end">{{ d.recaudo|formato_moneda }}</td>
+                    <td class="text-end">{{ d.prog_gas|formato_moneda }}</td>
+                    <td class="text-end">{{ d.compromisos|formato_moneda }}</td>
+                    <td class="text-end">{{ d.pagos|formato_moneda }}</td>
+                    <td class="text-center">
+                        <span class="badge-pct {{ d.pct_comp|color_porcentaje }}">{{ d.pct_comp }}%</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge-pct {{ d.pct_pago|color_porcentaje }}">{{ d.pct_pago }}%</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Rubros asociados -->
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card-custom">
+            <div class="card-header" style="background: linear-gradient(135deg, #4caf50, #66bb6a)">
+                <span><i class="fas fa-arrow-up me-2"></i>Rubros de Ingreso</span>
+                <span class="badge bg-white text-dark">{{ rubros_ingreso|length }}</span>
+            </div>
+            <div class="table-responsive" style="max-height:300px">
+                <table class="table table-pac table-hover mb-0">
+                    <thead>
+                        <tr><th>Codigo</th><th>Rubro</th><th class="text-end">Total Prog.</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rubros_ingreso %}
+                        <tr>
+                            <td class="fw-semibold">{{ r.codigo_rubro }}</td>
+                            <td>{{ r.nombre_rubro|truncatewords:5 }}</td>
+                            <td class="text-end">{{ r.total|formato_moneda }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Sin rubros de ingreso</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card-custom">
+            <div class="card-header" style="background: linear-gradient(135deg, #f44336, #ef5350)">
+                <span><i class="fas fa-arrow-down me-2"></i>Rubros de Gasto</span>
+                <span class="badge bg-white text-dark">{{ rubros_gasto|length }}</span>
+            </div>
+            <div class="table-responsive" style="max-height:300px">
+                <table class="table table-pac table-hover mb-0">
+                    <thead>
+                        <tr><th>Codigo</th><th>Rubro</th><th class="text-end">Total Prog.</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rubros_gasto %}
+                        <tr>
+                            <td class="fw-semibold">{{ r.codigo_rubro }}</td>
+                            <td>{{ r.nombre_rubro|truncatewords:5 }}</td>
+                            <td class="text-end">{{ r.total|formato_moneda }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Sin rubros de gasto</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const meses = {{ meses_display|safe }};
+    const datosM = [
+        {% for d in datos_mensuales %}
+        {prog_gas: {{ d.prog_gas }}, comp: {{ d.compromisos }}, pagos: {{ d.pagos }}, recaudo: {{ d.recaudo }}}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    new Chart(document.getElementById('chartFuente'), {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Programado Gastos',
+                data: datosM.map(d => d.prog_gas),
+                backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                borderColor: '#f44336',
+                borderWidth: 2
+            }, {
+                label: 'Compromisos',
+                data: datosM.map(d => d.comp),
+                backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                borderColor: '#2196f3',
+                borderWidth: 2
+            }, {
+                label: 'Pagos',
+                data: datosM.map(d => d.pagos),
+                backgroundColor: 'rgba(156, 39, 176, 0.2)',
+                borderColor: '#9c27b0',
+                borderWidth: 2
+            }, {
+                label: 'Recaudo',
+                data: datosM.map(d => d.recaudo),
+                type: 'line',
+                borderColor: '#4caf50',
+                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                tension: 0.3,
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => '$' + (v/1000000).toFixed(0) + 'M' }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

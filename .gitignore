@@ -1,0 +1,7 @@
+cookies.txt
+nul
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+.claude/

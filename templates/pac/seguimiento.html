@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% load pac_tags %}
+{% load humanize %}
+
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}{{ titulo }} - Vigencia {{ vigencia }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="fw-bold text-dark mb-1">{{ titulo }}</h5>
+        <small class="text-muted">{{ subtitulo }} - Vigencia {{ vigencia }}</small>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <form method="get" class="d-flex gap-2 align-items-center">
+            <select name="vigencia" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
+                <option value="2025" {% if vigencia == 2025 %}selected{% endif %}>2025</option>
+                <option value="2026" {% if vigencia == 2026 %}selected{% endif %}>2026</option>
+                <option value="2027" {% if vigencia == 2027 %}selected{% endif %}>2027</option>
+            </select>
+        </form>
+        {% if 'Ingresos' in titulo %}
+        <a href="{% url 'exportar_seguimiento' 'ingresos' %}?vigencia={{ vigencia }}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel me-1"></i>Exportar Excel
+        </a>
+        {% elif 'Compromisos' in titulo %}
+        <a href="{% url 'exportar_seguimiento' 'comp_vs_pago' %}?vigencia={{ vigencia }}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel me-1"></i>Exportar Excel
+        </a>
+        {% else %}
+        <a href="{% url 'exportar_seguimiento' 'gastos' %}?vigencia={{ vigencia }}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel me-1"></i>Exportar Excel
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Velocimetros de cumplimiento -->
+{% if datos %}
+<div class="card-custom mb-4">
+    <div class="card-header" style="background: {{ color }}">
+        <span><i class="fas fa-tachometer-alt me-2"></i>Cumplimiento General y por Categoria</span>
+    </div>
+    <div class="p-3">
+        <div class="row g-3 align-items-center">
+            <!-- Velocimetro general grande -->
+            <div class="col-md-4 text-center">
+                <div style="position:relative; max-width:250px; margin:auto">
+                    <canvas id="gaugeGeneral" height="180"></canvas>
+                    <div style="position:absolute; bottom:18px; left:50%; transform:translateX(-50%); text-align:center">
+                        <div style="font-size:2rem; font-weight:800; color:#1a237e">{{ pct_general }}%</div>
+                        <div style="font-size:0.75rem; color:#666; font-weight:600">CUMPLIMIENTO GENERAL</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Velocimetros por categoria -->
+            <div class="col-md-8">
+                <div class="row g-2">
+                    {% for fila in datos %}
+                    <div class="col-sm-6 col-lg-4 text-center">
+                        <div style="position:relative; max-width:160px; margin:auto">
+                            <canvas id="gauge-{{ forloop.counter0 }}" height="130"></canvas>
+                            <div style="position:absolute; bottom:8px; left:50%; transform:translateX(-50%); text-align:center">
+                                <div style="font-size:1.2rem; font-weight:700; color:#333">{{ fila.pct_total }}%</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.7rem; font-weight:600; color:#555; margin-top:-5px">{{ fila.fuente|truncatewords:3 }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Tabla de seguimiento -->
+<div class="card-custom">
+    <div class="card-header" style="background: {{ color }}">
+        <span><i class="fas fa-clipboard-check me-2"></i>{{ titulo }}</span>
+        <span class="badge bg-white text-dark">{{ datos|length }} fuentes</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-pac table-hover table-striped mb-0" style="font-size:0.75rem">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="vertical-align:middle">Fuente de Financiacion</th>
+                    {% for mes in meses_display %}
+                    <th colspan="3" class="text-center" style="border-bottom:0">{{ mes|truncatechars:3 }}</th>
+                    {% endfor %}
+                    <th colspan="3" class="text-center" style="border-bottom:0; background:#e3f2fd">TOTAL</th>
+                </tr>
+                <tr>
+                    {% for mes in meses_display %}
+                    <th class="text-end" style="font-size:0.6rem">Prog.</th>
+                    <th class="text-end" style="font-size:0.6rem">Ejec.</th>
+                    <th class="text-center" style="font-size:0.6rem">%</th>
+                    {% endfor %}
+                    <th class="text-end" style="font-size:0.6rem; background:#e3f2fd">Prog.</th>
+                    <th class="text-end" style="font-size:0.6rem; background:#e3f2fd">Ejec.</th>
+                    <th class="text-center" style="font-size:0.6rem; background:#e3f2fd">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in datos %}
+                <!-- Fila agregada de categoria -->
+                <tr style="background:#e8f5e9; font-weight:700; cursor:pointer" onclick="toggleItems('cat-{{ forloop.counter0 }}')">
+                    <td style="white-space:nowrap">
+                        <i class="fas fa-chevron-down me-1 toggle-icon" id="icon-cat-{{ forloop.counter0 }}" style="font-size:0.6rem; transition:transform 0.2s"></i>
+                        {{ fila.fuente|truncatewords:4 }}
+                    </td>
+                    {% for mes_data in fila.meses %}
+                    <td class="text-end">{{ mes_data.programado|formato_moneda }}</td>
+                    <td class="text-end">{{ mes_data.ejecutado|formato_moneda }}</td>
+                    <td class="text-center">
+                        <span class="badge-pct {{ mes_data.pct|bg_porcentaje }} bg-opacity-10 {{ mes_data.pct|color_porcentaje }}">
+                            {{ mes_data.pct }}%
+                        </span>
+                    </td>
+                    {% endfor %}
+                    <td class="text-end fw-bold" style="background:#e3f2fd">{{ fila.prog_total|formato_moneda }}</td>
+                    <td class="text-end fw-bold" style="background:#e3f2fd">{{ fila.ejec_total|formato_moneda }}</td>
+                    <td class="text-center" style="background:#e3f2fd">
+                        <span class="badge {{ fila.pct_total|bg_porcentaje }}">{{ fila.pct_total }}%</span>
+                    </td>
+                </tr>
+                <!-- Items individuales (rubros) de esta categoria -->
+                {% for item in fila.items %}
+                <tr class="item-row cat-{{ forloop.parentloop.counter0 }}" style="display:none; font-size:0.7rem">
+                    <td style="padding-left:25px; white-space:nowrap; max-width:200px; overflow:hidden; text-overflow:ellipsis" title="{{ item.codigo }} - {{ item.fuente }}">
+                        {{ item.fuente|truncatewords:5 }}
+                    </td>
+                    {% for mes_data in item.meses %}
+                    <td class="text-end">{{ mes_data.programado|formato_moneda }}</td>
+                    <td class="text-end">{{ mes_data.ejecutado|formato_moneda }}</td>
+                    <td class="text-center">
+                        <span class="badge-pct {{ mes_data.pct|bg_porcentaje }} bg-opacity-10 {{ mes_data.pct|color_porcentaje }}">
+                            {{ mes_data.pct }}%
+                        </span>
+                    </td>
+                    {% endfor %}
+                    <td class="text-end" style="background:#f5f9ff">{{ item.prog_total|formato_moneda }}</td>
+                    <td class="text-end" style="background:#f5f9ff">{{ item.ejec_total|formato_moneda }}</td>
+                    <td class="text-center" style="background:#f5f9ff">
+                        <span class="badge-pct {{ item.pct_total|bg_porcentaje }} bg-opacity-10 {{ item.pct_total|color_porcentaje }}">
+                            {{ item.pct_total }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% empty %}
+                <tr>
+                    <td colspan="40" class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                        No hay datos para mostrar. Cargue primero el PAC Programado y Ejecutado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tabla desagregada (todos los rubros individuales) -->
+{% if items_desagregados %}
+<div class="card-custom mt-4">
+    <div class="card-header" style="background: linear-gradient(135deg, #1565c0, #1976d2)">
+        <span><i class="fas fa-list-ul me-2"></i>Detalle Desagregado por Rubro</span>
+        <span class="badge bg-white text-dark">{{ items_desagregados|length }} rubros</span>
+    </div>
+    <div class="table-responsive" style="max-height:700px; overflow:auto">
+        <table class="table table-pac table-hover table-striped mb-0" style="font-size:0.72rem">
+            <thead style="position:sticky; top:0; z-index:2">
+                <tr>
+                    <th rowspan="2" style="vertical-align:middle; min-width:100px">Categoria</th>
+                    <th rowspan="2" style="vertical-align:middle; min-width:180px">Rubro</th>
+                    {% for mes in meses_display %}
+                    <th colspan="3" class="text-center" style="border-bottom:0">{{ mes|truncatechars:3 }}</th>
+                    {% endfor %}
+                    <th colspan="3" class="text-center" style="border-bottom:0; background:#e3f2fd">TOTAL</th>
+                </tr>
+                <tr>
+                    {% for mes in meses_display %}
+                    <th class="text-end" style="font-size:0.55rem">Prog.</th>
+                    <th class="text-end" style="font-size:0.55rem">Ejec.</th>
+                    <th class="text-center" style="font-size:0.55rem">%</th>
+                    {% endfor %}
+                    <th class="text-end" style="font-size:0.55rem; background:#e3f2fd">Prog.</th>
+                    <th class="text-end" style="font-size:0.55rem; background:#e3f2fd">Ejec.</th>
+                    <th class="text-center" style="font-size:0.55rem; background:#e3f2fd">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items_desagregados %}
+                <tr>
+                    <td style="font-size:0.65rem; white-space:nowrap">
+                        <span class="badge bg-secondary" style="font-size:0.55rem">{{ item.categoria|truncatewords:2 }}</span>
+                    </td>
+                    <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ item.codigo }} - {{ item.fuente }}">
+                        {{ item.fuente|truncatewords:5 }}
+                    </td>
+                    {% for mes_data in item.meses %}
+                    <td class="text-end">{{ mes_data.programado|formato_moneda }}</td>
+                    <td class="text-end">{{ mes_data.ejecutado|formato_moneda }}</td>
+                    <td class="text-center">
+                        <span class="badge-pct {{ mes_data.pct|bg_porcentaje }} bg-opacity-10 {{ mes_data.pct|color_porcentaje }}">
+                            {{ mes_data.pct }}%
+                        </span>
+                    </td>
+                    {% endfor %}
+                    <td class="text-end fw-bold" style="background:#e3f2fd">{{ item.prog_total|formato_moneda }}</td>
+                    <td class="text-end fw-bold" style="background:#e3f2fd">{{ item.ejec_total|formato_moneda }}</td>
+                    <td class="text-center" style="background:#e3f2fd">
+                        <span class="badge-pct {{ item.pct_total|bg_porcentaje }} bg-opacity-10 {{ item.pct_total|color_porcentaje }}">
+                            {{ item.pct_total }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleItems(catClass) {
+    const rows = document.querySelectorAll('.' + catClass);
+    const icon = document.getElementById('icon-' + catClass);
+    const visible = rows.length > 0 && rows[0].style.display !== 'none';
+    rows.forEach(r => r.style.display = visible ? 'none' : 'table-row');
+    if (icon) icon.style.transform = visible ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+/* ===== Plugin: Aguja del velocimetro ===== */
+const needlePlugin = {
+    id: 'gaugeNeedle',
+    afterDatasetDraw(chart) {
+        if (!chart.config._needleValue && chart.config._needleValue !== 0) return;
+        const { ctx, chartArea } = chart;
+        const pct = Math.min(chart.config._needleValue, 100);
+        const cx = (chartArea.left + chartArea.right) / 2;
+        const cy = chartArea.bottom;
+        const r = Math.min(chartArea.right - chartArea.left, (chartArea.bottom - chartArea.top)) * 0.78;
+        const angle = Math.PI + (Math.PI * pct / 100);
+
+        ctx.save();
+        // Sombra de la aguja
+        ctx.shadowColor = 'rgba(0,0,0,0.25)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+        // Aguja
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(-3, 0);
+        ctx.lineTo(0, -r + 10);
+        ctx.lineTo(3, 0);
+        ctx.fillStyle = '#263238';
+        ctx.fill();
+        ctx.rotate(-angle);
+        ctx.translate(-cx, -cy);
+        // Centro
+        ctx.shadowColor = 'transparent';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#37474f';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.restore();
+
+        // Marcas de escala: 0, 25, 50, 75, 100
+        ctx.save();
+        ctx.font = chart.config._isSmall ? '9px sans-serif' : '10px sans-serif';
+        ctx.fillStyle = '#888';
+        ctx.textAlign = 'center';
+        const tickR = r + (chart.config._isSmall ? 8 : 12);
+        [0, 25, 50, 75, 100].forEach(v => {
+            const a = Math.PI + (Math.PI * v / 100);
+            const tx = cx + tickR * Math.cos(a);
+            const ty = cy + tickR * Math.sin(a);
+            ctx.fillText(v, tx, ty);
+        });
+        ctx.restore();
+    }
+};
+Chart.register(needlePlugin);
+
+/* ===== Funcion para crear velocimetro ===== */
+function createGauge(canvasId, pct, isSmall) {
+    const val = Math.min(Math.max(pct, 0), 100);
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    // Colores del arco: rojo -> amarillo -> verde
+    const bgColors = ['#e53935', '#e53935', '#fb8c00', '#fb8c00', '#43a047', '#43a047'];
+    const bgData = [16.6, 16.6, 16.6, 16.6, 16.6, 16.6]; // 6 segmentos = 100%
+
+    const chart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: bgData,
+                backgroundColor: bgColors,
+                borderWidth: 0,
+                cutout: isSmall ? '72%' : '68%',
+                circumference: 180,
+                rotation: 270,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+            },
+            layout: {
+                padding: { bottom: isSmall ? 5 : 10, top: isSmall ? 2 : 5 }
+            }
+        }
+    });
+    chart.config._needleValue = val;
+    chart.config._isSmall = isSmall;
+    chart.update();
+}
+</script>
+{% if datos %}
+<script>
+    // Velocimetro general
+    createGauge('gaugeGeneral', {{ pct_general }}, false);
+    // Velocimetros por categoria
+    {% for fila in datos %}
+    createGauge('gauge-{{ forloop.counter0 }}', {{ fila.pct_total }}, true);
+    {% endfor %}
+</script>
+{% endif %}
+{% endblock %}

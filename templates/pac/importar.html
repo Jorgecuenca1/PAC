@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load pac_tags %}
+
+{% block title %}Importar {{ modulo }}{% endblock %}
+{% block page_title %}Importar - {{ modulo }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card-custom">
+            <div class="card-header" style="background: {{ color }}">
+                <span><i class="fas fa-file-import me-2"></i>Importar {{ modulo }}</span>
+            </div>
+            <div class="p-4">
+                <div class="alert alert-info" style="border-radius:10px">
+                    <h6 class="fw-bold mb-2"><i class="fas fa-info-circle me-1"></i>Formato del archivo Excel</h6>
+                    <p class="mb-2" style="font-size:0.85rem">{{ descripcion_formato }}</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0" style="font-size:0.75rem">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Col A</th><th>Col B</th><th>Col C</th>
+                                    <th>Col D</th><th>Col E</th><th>Col F</th>
+                                    <th>Col G</th><th>Col H</th><th>Col I</th>
+                                    <th>Col J-U</th><th>Col V</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="text-muted">
+                                    <td>RP/CxP</td>
+                                    <td>Codigo</td>
+                                    <td>Descripcion</td>
+                                    <td>Aprop. Inicial</td>
+                                    <td>Adiciones</td>
+                                    <td>Reduccion</td>
+                                    <td>Creditos</td>
+                                    <td>Contracred.</td>
+                                    <td>Aprop. Definitiva</td>
+                                    <td>Ene a Dic</td>
+                                    <td>Total</td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td>1003 - 2.1.1.01</td>
+                                    <td>Sueldo basico</td>
+                                    <td>5,543,330</td>
+                                    <td>0</td><td>0</td><td>0</td><td>0</td>
+                                    <td>5,543,330</td>
+                                    <td>461,944...</td>
+                                    <td>5,543,330</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <small class="text-muted mt-2 d-block">
+                        <strong>Filas 1-4:</strong> Titulo, entidad y encabezados (se omiten). <strong>Fila 5 en adelante:</strong> Datos.
+                        El sistema detecta automaticamente las secciones de Ingresos y Gastos.
+                    </small>
+                </div>
+
+                <div class="alert alert-warning" style="border-radius:10px">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <strong>Importante:</strong> Al importar, se reemplazan todos los datos existentes de la misma vigencia para este modulo.
+                    Use el archivo Excel con el formato exacto de la entidad (PAC 2026 AIM).
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.vigencia.label }}</label>
+                        {{ form.vigencia }}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">{{ form.archivo.label }}</label>
+                        {{ form.archivo }}
+                        <small class="form-text text-muted">{{ form.archivo.help_text }}</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-sm px-4" style="background:{{ color }}; color:#fff">
+                            <i class="fas fa-upload me-1"></i>Importar Archivo
+                        </button>
+                        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm px-4">
+                            <i class="fas fa-arrow-left me-1"></i>Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-3 text-center">
+            {% if tipo_importacion == 'AIM_INICIAL' %}
+            <a href="{% url 'descargar_plantilla' 'aim_inicial' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-download me-1"></i>Descargar Plantilla de Ejemplo
+            </a>
+            {% elif tipo_importacion == 'PROGRAMADO' %}
+            <a href="{% url 'descargar_plantilla' 'programado' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-download me-1"></i>Descargar Plantilla de Ejemplo
+            </a>
+            {% elif tipo_importacion == 'EJECUTADO_COMPROMISO' %}
+            <a href="{% url 'descargar_plantilla' 'compromisos' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-download me-1"></i>Descargar Plantilla de Ejemplo
+            </a>
+            {% elif tipo_importacion == 'EJECUTADO_PAGO' %}
+            <a href="{% url 'descargar_plantilla' 'pagos' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-download me-1"></i>Descargar Plantilla de Ejemplo
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

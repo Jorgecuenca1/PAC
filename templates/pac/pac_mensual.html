@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load pac_tags %}
+{% load humanize %}
+
+{% block title %}{{ modulo }}{% endblock %}
+{% block page_title %}PAC 2026 - {{ modulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="fw-bold text-dark mb-1">{{ modulo }} - Vigencia {{ vigencia }}</h5>
+        <small class="text-muted">Formato: PAC 2026 AIM (1).xlsx</small>
+    </div>
+    <div class="d-flex gap-2">
+        {% if 'Programado' in modulo %}
+        <a href="{% url 'descargar_plantilla' 'programado' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-download me-1"></i>Plantilla</a>
+        <a href="{% url 'importar_pac_programado' %}" class="btn btn-sm" style="background:{{ color }}; color:#fff"><i class="fas fa-file-import me-1"></i>Importar</a>
+        <form method="post" action="{% url 'eliminar_datos' 'programado' %}?vigencia={{ vigencia }}" class="d-inline" onsubmit="return confirm('Eliminar datos?')">{% csrf_token %}<button class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Limpiar</button></form>
+        {% elif 'Compromisos' in modulo %}
+        <a href="{% url 'descargar_plantilla' 'compromisos' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-download me-1"></i>Plantilla</a>
+        <a href="{% url 'importar_pac_compromisos' %}" class="btn btn-sm" style="background:{{ color }}; color:#fff"><i class="fas fa-file-import me-1"></i>Importar</a>
+        <form method="post" action="{% url 'eliminar_datos' 'compromisos' %}?vigencia={{ vigencia }}" class="d-inline" onsubmit="return confirm('Eliminar datos?')">{% csrf_token %}<button class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Limpiar</button></form>
+        {% elif 'Pagos' in modulo %}
+        <a href="{% url 'descargar_plantilla' 'pagos' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-download me-1"></i>Plantilla</a>
+        <a href="{% url 'importar_pac_pagos' %}" class="btn btn-sm" style="background:{{ color }}; color:#fff"><i class="fas fa-file-import me-1"></i>Importar</a>
+        <form method="post" action="{% url 'eliminar_datos' 'pagos' %}?vigencia={{ vigencia }}" class="d-inline" onsubmit="return confirm('Eliminar datos?')">{% csrf_token %}<button class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Limpiar</button></form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card-custom mb-3">
+    <div class="p-3">
+        <form method="get" class="d-flex gap-3 align-items-center flex-wrap">
+            <select name="vigencia" class="form-select form-select-sm" style="width:100px">
+                <option value="2025" {% if vigencia == 2025 %}selected{% endif %}>2025</option>
+                <option value="2026" {% if vigencia == 2026 %}selected{% endif %}>2026</option>
+                <option value="2027" {% if vigencia == 2027 %}selected{% endif %}>2027</option>
+            </select>
+            <select name="tipo" class="form-select form-select-sm" style="width:140px">
+                <option value="">Todos</option>
+                <option value="INGRESO" {% if tipo_filtro == 'INGRESO' %}selected{% endif %}>Ingresos</option>
+                <option value="GASTO" {% if tipo_filtro == 'GASTO' %}selected{% endif %}>Gastos</option>
+            </select>
+            <select name="categoria" class="form-select form-select-sm" style="width:200px">
+                <option value="">Todas categorias</option>
+                <option value="SALDO_INICIAL" {% if cat_filtro == 'SALDO_INICIAL' %}selected{% endif %}>Saldo Inicial</option>
+                <option value="INGRESO_CORRIENTE" {% if cat_filtro == 'INGRESO_CORRIENTE' %}selected{% endif %}>Ing. Corrientes</option>
+                <option value="FUNCIONAMIENTO" {% if cat_filtro == 'FUNCIONAMIENTO' %}selected{% endif %}>Funcionamiento</option>
+                <option value="INVERSION" {% if cat_filtro == 'INVERSION' %}selected{% endif %}>Inversion</option>
+                <option value="RESERVAS" {% if cat_filtro == 'RESERVAS' %}selected{% endif %}>Reservas</option>
+                <option value="CUENTAS_POR_PAGAR" {% if cat_filtro == 'CUENTAS_POR_PAGAR' %}selected{% endif %}>Cuentas x Pagar</option>
+            </select>
+            <button class="btn btn-primary btn-sm"><i class="fas fa-filter me-1"></i>Filtrar</button>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla -->
+<div class="card-custom">
+    <div class="card-header" style="background: {{ color }}">
+        <span><i class="fas fa-table me-2"></i>{{ modulo }}</span>
+        <span class="badge bg-white text-dark">{{ registros.count }} registros</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-pac table-hover table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Cat.</th>
+                    <th>Codigo</th>
+                    <th>Rubro</th>
+                    <th class="text-end">Aprop. Def.</th>
+                    {% for mes in meses_display %}
+                    <th class="text-end">{{ mes|truncatechars:3 }}</th>
+                    {% endfor %}
+                    <th class="text-end fw-bold">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reg in registros %}
+                <tr {% if reg.es_subtotal %}style="background:#f0f4f8; font-weight:600"{% endif %}>
+                    <td>
+                        {% if reg.tipo == 'INGRESO' %}
+                        <span class="badge bg-success" style="font-size:0.6rem">ING</span>
+                        {% else %}
+                        <span class="badge bg-danger" style="font-size:0.6rem">GAS</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.6rem">{{ reg.get_categoria_display|truncatewords:1 }}</td>
+                    <td class="fw-semibold" style="font-size:0.7rem">{{ reg.codigo_rubro|truncatechars:30 }}</td>
+                    <td style="max-width:130px; overflow:hidden; text-overflow:ellipsis" title="{{ reg.nombre_rubro }}">
+                        {{ reg.nombre_rubro|truncatewords:4 }}
+                    </td>
+                    <td class="text-end" style="font-size:0.7rem">{{ reg.apropiacion_definitiva|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.enero|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.febrero|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.marzo|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.abril|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.mayo|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.junio|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.julio|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.agosto|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.septiembre|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.octubre|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.noviembre|formato_moneda }}</td>
+                    <td class="text-end">{{ reg.diciembre|formato_moneda }}</td>
+                    <td class="text-end fw-bold">{{ reg.total|formato_moneda }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="18" class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                        No hay registros. Importe el archivo Excel correspondiente.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if registros %}
+            <tfoot>
+                <tr class="fw-bold" style="background:#f8fafc">
+                    <td colspan="5">TOTALES</td>
+                    {% for mes in meses %}
+                    <td class="text-end">{{ totales|get_item:mes|formato_moneda }}</td>
+                    {% endfor %}
+                    <td class="text-end">{{ totales.total|formato_moneda }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+{% endblock %}
